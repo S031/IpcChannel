@@ -10,7 +10,6 @@ namespace IpcChannel
 {
 	/// <summary>
 	/// ToDo:
-	///		optimize performance (exclude arrays copieng drom streams read/write
 	///     CancelationToken use
 	///     exception hanglig (IpcChannelException)
 	///     client file not support pipe exceptions
