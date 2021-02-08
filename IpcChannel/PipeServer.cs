@@ -18,6 +18,7 @@ namespace IpcChannel
 	/// </summary>
 	public sealed class IpcPipeServer : IDisposable
 	{
+		private const string close_channel_method_name = "CloseChannel";
 		private readonly AnonymousPipeServerStream _pipeRead = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
 		private readonly AnonymousPipeServerStream _pipeWrite = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
 		private readonly Process _workProcess;
@@ -84,13 +85,17 @@ namespace IpcChannel
 			return result;
 		}
 
+		public async Task CloseChannel()
+			=> await CallMethod(close_channel_method_name);
+
 		public void Dispose()
 		{
-			Logger.LogDebug($"Server {PipeReadHandle}-{PipeWriteHandle}  disposing");
-			_workProcess?.WaitForExit();
+			Logger.LogInfo($"Server {PipeReadHandle}-{PipeWriteHandle}  disposing");
 			_workProcess?.Close();
+			//_workProcess?.WaitForExit();
 			_pipeRead?.Dispose();
 			_pipeWrite.Dispose();
+			Logger.Flush();
 		}
 	}
 

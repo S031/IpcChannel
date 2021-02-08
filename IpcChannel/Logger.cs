@@ -91,34 +91,7 @@ namespace IpcChannel
 
 		public static void Send(string subject)
 		{
-			string sender = "for.matador@mail.ru";
-			string password = "s031-s031";
-			MailMessage mail = new MailMessage
-			{
-				From = new MailAddress(sender)
-			};
-
-			using (SmtpClient smtp = new SmtpClient())
-			{
-				smtp.Host = "smtp.mail.ru";
-				smtp.Port = 587;
-				smtp.Timeout = 10000;
-				smtp.EnableSsl = true;
-				smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
-				smtp.UseDefaultCredentials = false;
-				smtp.Credentials = new NetworkCredential(sender, password);
-
-				//recipient address
-				mail.To.Add(new MailAddress("svostrikov@metib.ru"));
-				mail.To.Add(new MailAddress("nkirgizov@metib.ru"));
-				mail.Subject = subject;
-				mail.From = new MailAddress(sender);
-				mail.IsBodyHtml = false;
-				string st = _logger.ToString();
-
-				mail.Body = st;
-				smtp.Send(mail);
-			}
+			throw new NotImplementedException();
 		}
 	}
 }

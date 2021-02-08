@@ -11,6 +11,7 @@ namespace IpcChannel
 {
 	public sealed class IpcPipeClient : IDisposable
 	{
+		private const string close_channel_method_name = "CloseChannel";
 		private readonly AnonymousPipeClientStream _pipeRead;
 		private readonly AnonymousPipeClientStream _pipeWrite;
 		private readonly Func<string, CancellationToken, Task<string>> _messageProcessor;
@@ -32,6 +33,7 @@ namespace IpcChannel
 			{
 				byte[] buffer;
 				int streamSize = 0;
+				bool isCancel = false;
 				try
 				{
 					buffer = await GetByteArrayFromStreamAsync(_pipeRead, sizeof(int));
@@ -42,12 +44,16 @@ namespace IpcChannel
 				catch (Exception e)
 				{
 					Logger.LogError(e);
+					break;
 				}
 
 				buffer = await GetByteArrayFromStreamAsync(_pipeRead, streamSize);
 				string request = Encoding.UTF8.GetString(buffer);
 				Logger.LogDebug(request);
-				var response = await _messageProcessor(request, _cancellationToken);
+				isCancel = request == close_channel_method_name;
+				var response = isCancel
+					? "OK"
+					: await _messageProcessor(request, _cancellationToken);
 				Logger.LogDebug(response);
 				buffer = Encoding.UTF8.GetBytes(response);
 #if NETCOREAPP
@@ -56,6 +62,8 @@ namespace IpcChannel
 #else
 				await _pipeWrite.WriteAsync(BitConverter.GetBytes(buffer.Length), 0, sizeof(int), _cancellationToken);
 				await _pipeWrite.WriteAsync(buffer, 0, buffer.Length, _cancellationToken);
+				if (isCancel)
+					break;
 #endif
 			}
 		}
@@ -73,9 +81,10 @@ namespace IpcChannel
 
 		public void Dispose()
 		{
-			Logger.LogDebug($"Client {_pipeRead?.SafePipeHandle}-{_pipeWrite?.SafePipeHandle} disposing");
+			Logger.LogInfo($"Client {_pipeRead?.SafePipeHandle.DangerousGetHandle().ToInt32()}-{_pipeWrite?.SafePipeHandle.DangerousGetHandle().ToInt32()} disposing");
 			_pipeRead?.Dispose();
 			_pipeWrite.Dispose();
+			Logger.Flush();
 		}
 	}
 }

@@ -10,42 +10,46 @@ namespace IpcChannelTestServer
 {
 	class Program
 	{
+		//test parameters
+		//Using test on new thread or process
 		private const bool start_client_in_thread = false;
+		//performance test loop count
+		private const int loop_count = 1;// 100_000;
+
 
 		static async Task Main(string[] args)
 		{
-			CancellationToken cancellationToken = new CancellationTokenSource().Token;
+			using (CancellationTokenSource cancellationTokenSource = new CancellationTokenSource())
+			{
+				CancellationToken cancellationToken = cancellationTokenSource.Token;
 #if DEBUG
 			Logger.LoggerOptions.LoggingLevel = LogLevel.Debug;
 #else
-			Logger.LoggerOptions.LoggingLevel = LogLevel.Information;
+				Logger.LoggerOptions.LoggingLevel = LogLevel.Information;
 #endif
 
-			if (args.Length == 0)
-			{
-				Logger.LogInfo("Started application (Process A)...", true);
-				using (IpcPipeServer s = start_client_in_thread
-					? StartServerWithThreadClient(cancellationToken)
-					: StartServerWithProcessClient(cancellationToken))
+				if (args.Length == 0)
 				{
-					int loopCount = 100000;
-					Logger.LogInfo($"Start loop for {loopCount} iterations", true);
-					DateTime d = DateTime.Now;
-					for (int i = 0; i < loopCount; i++)
+					Logger.LogInfo("Started application (Process A)...", true);
+					using (IpcPipeServer s = start_client_in_thread
+						? StartServerWithThreadClient(cancellationToken)
+						: StartServerWithProcessClient(cancellationToken))
 					{
-						Logger.LogDebug($"TestMethod{i}");
-						var r = await s.CallMethod($"TestMethod{i}");
-						Logger.LogDebug($"Result{i}:\t{r}");
+						Logger.LogInfo($"Start loop for {loop_count} iterations", true);
+						DateTime d = DateTime.Now;
+						for (int i = 0; i < loop_count; i++)
+						{
+							var r = await s.CallMethod($"TestMethod{i}").ConfigureAwait(false);
+						}
+						Logger.LogInfo($"End loop for {loop_count} iterations with {(DateTime.Now - d).TotalMilliseconds} ms", true);
+						await s.CloseChannel().ConfigureAwait(false);
+						Console.ReadLine();
 					}
-					Logger.LogInfo($"End loop for {loopCount} iterations with {(DateTime.Now - d).TotalMilliseconds} ms", true);
-					Logger.Flush();
-					Console.ReadLine();
 				}
-			}
-			else
-			{
-				Logger.LogInfo("Client start..");
-				await StartClient(args[0], args[1], cancellationToken);
+				else
+				{
+					await StartClient(args[0], args[1], cancellationToken);
+				}
 				Logger.Flush();
 			}
 		}
@@ -71,6 +75,7 @@ namespace IpcChannelTestServer
 
 		private static async Task StartClient(string pipeServerReadHandle, string pipeServerWriteHandle, CancellationToken cancellationToken = default)
 		{
+			Logger.LogInfo("Client start..");
 			using (IpcPipeClient c = new IpcPipeClient(pipeServerReadHandle, pipeServerWriteHandle,
 				(s, t) => ProcessMessage(s), cancellationToken))
 			{
