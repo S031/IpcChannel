@@ -12,9 +12,9 @@ namespace IpcChannelTestServer
 	{
 		//test parameters
 		//Using test on new thread or process
-		private const bool start_client_in_thread = false;
+		private const bool start_client_in_thread = true;
 		//performance test loop count
-		private const int loop_count = 1;// 100_000;
+		private const int loop_count = 100_000;
 
 
 		static async Task Main(string[] args)
@@ -30,6 +30,8 @@ namespace IpcChannelTestServer
 
 				if (args.Length == 0)
 				{
+					//Log for this will be one
+					Logger.LoggerOptions.LogName = "IpcPipeServer-";
 					Logger.LogInfo("Started application (Process A)...", true);
 					using (IpcPipeServer s = start_client_in_thread
 						? StartServerWithThreadClient(cancellationToken)
@@ -48,6 +50,8 @@ namespace IpcChannelTestServer
 				}
 				else
 				{
+					//Client runing in process mode
+					Logger.LoggerOptions.LogName = "IpcPipeClient-";
 					await StartClient(args[0], args[1], cancellationToken);
 				}
 				Logger.Flush();

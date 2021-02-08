@@ -25,6 +25,7 @@ namespace IpcChannel
 	{
 		public LogLevel LoggingLevel { get; set; } = LogLevel.Information;
 		public bool AutoFlush { get; set; } = true;
+		public string LogName { get; set; } = string.Empty;
 	}
 
 	public static class Logger
@@ -35,9 +36,10 @@ namespace IpcChannel
 		private static readonly string _logPath =
 				Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "log");
 
-		private static readonly string _logFileName =
-			string.Format(@"{0}\{1}.log",
+		private static string _logFileName 
+			=>string.Format(@"{0}\{1}{2}.log",
 				_logPath,
+				LoggerOptions.LogName,
 				DateTime.Now.ToString("yyyy-MM"));
 
 		public static LoggerOptions LoggerOptions { get; } = new LoggerOptions() { LoggingLevel = LogLevel.Information };
