@@ -16,6 +16,7 @@ namespace IpcChannel
 		private readonly AnonymousPipeClientStream _pipeWrite;
 		private readonly Func<string, CancellationToken, Task<string>> _messageProcessor;
 		private readonly CancellationToken _cancellationToken;
+		private readonly EventWaitHandle _ewh;
 
 		public IpcPipeClient(string pipeServerReadHandle, string pipeServerWriteHandle, 
 			Func<string, CancellationToken, Task<string>> messageProcessor, 
@@ -25,12 +26,20 @@ namespace IpcChannel
 			_pipeWrite = new AnonymousPipeClientStream(PipeDirection.Out, pipeServerReadHandle);
 			_messageProcessor = messageProcessor;
 			_cancellationToken = token == default ? new CancellationTokenSource().Token : token;
+#pragma warning disable CA1416 // Validate platform compatibility
+			_ewh = EventWaitHandle.OpenExisting($"{pipeServerReadHandle}-{pipeServerWriteHandle}");
+#pragma warning restore CA1416 // Validate platform compatibility
 		}
 
 		public async Task ListenAsync()
 		{
-			while (!_cancellationToken.IsCancellationRequested)
-			{
+			while (!_cancellationToken.IsCancellationRequested
+				&& _ewh.WaitOne()
+				&& await DoListen()) { }
+		}
+
+		private async Task<bool> DoListen()
+		{
 				byte[] buffer;
 				int streamSize = 0;
 				bool isCancel = false;
@@ -39,12 +48,12 @@ namespace IpcChannel
 					buffer = await GetByteArrayFromStreamAsync(_pipeRead, sizeof(int));
 					streamSize = BitConverter.ToInt32(buffer, 0);
 					if (streamSize == 0)
-						break;
+						return false;
 				}
 				catch (Exception e)
 				{
 					Logger.LogError(e);
-					break;
+					return false;
 				}
 
 				buffer = await GetByteArrayFromStreamAsync(_pipeRead, streamSize);
@@ -62,10 +71,8 @@ namespace IpcChannel
 #else
 				await _pipeWrite.WriteAsync(BitConverter.GetBytes(buffer.Length), 0, sizeof(int), _cancellationToken);
 				await _pipeWrite.WriteAsync(buffer, 0, buffer.Length, _cancellationToken);
-				if (isCancel)
-					break;
 #endif
-			}
+			return !isCancel;
 		}
 
 		private async Task<byte[]> GetByteArrayFromStreamAsync(PipeStream stream, int length)

@@ -12,7 +12,7 @@ namespace IpcChannelTestServer
 	{
 		//test parameters
 		//Using test on new thread or process
-		private const bool start_client_in_thread = true;
+		private const bool start_client_in_thread = false;
 		//performance test loop count
 		private const int loop_count = 100_000;
 

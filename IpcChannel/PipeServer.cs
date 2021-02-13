@@ -10,7 +10,7 @@ namespace IpcChannel
 {
 	/// <summary>
 	/// ToDo:
-	///     CancelationToken use
+	///		multithred use test
 	///     exception hanglig (IpcChannelException)
 	///     client file not support pipe exceptions
 	///     reload/unload channel support
@@ -23,6 +23,7 @@ namespace IpcChannel
 		private readonly AnonymousPipeServerStream _pipeWrite = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
 		private readonly Process _workProcess;
 		private readonly CancellationToken _cancellationToken;
+		private readonly EventWaitHandle _ewh;
 
 		public IpcPipeServer(IpcPipeServerOptions options)
 		{
@@ -32,6 +33,7 @@ namespace IpcChannel
 				? new CancellationTokenSource().Token 
 				: options.CancellationToken;
 
+			_ewh = new EventWaitHandle(true, EventResetMode.AutoReset, $"{PipeReadHandle}-{PipeWriteHandle}");
 			if (!string.IsNullOrEmpty(options.ProcessStartPath) && File.Exists(options.ProcessStartPath))
 			{
 				_workProcess = new Process
@@ -56,6 +58,7 @@ namespace IpcChannel
 
 		public async Task<string> CallMethod(string callMethodInfo)
 		{
+			_ewh.Set();
 			var buffer = Encoding.UTF8.GetBytes(callMethodInfo);
 #if NETCOREAPP
 			await _pipeWrite.WriteAsync(BitConverter.GetBytes(buffer.Length).AsMemory(0, sizeof(int)), _cancellationToken);
