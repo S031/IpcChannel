@@ -95,7 +95,7 @@ namespace IpcChannel
 		{
 			Logger.LogInfo($"Server {PipeReadHandle}-{PipeWriteHandle}  disposing");
 			_workProcess?.Close();
-			//_workProcess?.WaitForExit();
+			_ewh.Dispose();
 			_pipeRead?.Dispose();
 			_pipeWrite.Dispose();
 			Logger.Flush();
