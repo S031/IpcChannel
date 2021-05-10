@@ -40,34 +40,34 @@ namespace IpcChannel
 
 		private async Task<bool> DoListen()
 		{
-				byte[] buffer;
-				int streamSize = 0;
-				bool isCancel = false;
-				try
-				{
-					buffer = await GetByteArrayFromStreamAsync(_pipeRead, sizeof(int));
-					streamSize = BitConverter.ToInt32(buffer, 0);
-					if (streamSize == 0)
-						return false;
-				}
-				catch (Exception e)
-				{
-					Logger.LogError(e);
+			byte[] buffer;
+			int streamSize = 0;
+			bool isCancel = false;
+			try
+			{
+				buffer = await GetByteArrayFromStreamAsync(_pipeRead, sizeof(int));
+				streamSize = BitConverter.ToInt32(buffer, 0);
+				if (streamSize == 0)
 					return false;
-				}
+			}
+			catch (Exception e)
+			{
+				Logger.LogError(e);
+				return false;
+			}
 
-				buffer = await GetByteArrayFromStreamAsync(_pipeRead, streamSize);
-				string request = Encoding.UTF8.GetString(buffer);
-				Logger.LogDebug(request);
-				isCancel = request == close_channel_method_name;
-				var response = isCancel
-					? "OK"
-					: await _messageProcessor(request, _cancellationToken);
-				Logger.LogDebug(response);
-				buffer = Encoding.UTF8.GetBytes(response);
+			buffer = await GetByteArrayFromStreamAsync(_pipeRead, streamSize);
+			string request = buffer.GetString(); //Encoding.UTF8.GetString(buffer);
+			Logger.LogDebug(request);
+			isCancel = request == close_channel_method_name;
+			var response = isCancel
+				? "OK"
+				: await _messageProcessor(request, _cancellationToken);
+			Logger.LogDebug(response);
+			buffer = response.GetBytes(); //Encoding.UTF8.GetBytes(response);
 #if NETCOREAPP
-				await _pipeWrite.WriteAsync(BitConverter.GetBytes(buffer.Length).AsMemory(0, sizeof(int)), _cancellationToken);
-				await _pipeWrite.WriteAsync(buffer.AsMemory(0, buffer.Length), _cancellationToken);
+			await _pipeWrite.WriteAsync(BitConverter.GetBytes(buffer.Length).AsMemory(0, sizeof(int)), _cancellationToken);
+			await _pipeWrite.WriteAsync(buffer.AsMemory(0, buffer.Length), _cancellationToken);
 #else
 				await _pipeWrite.WriteAsync(BitConverter.GetBytes(buffer.Length), 0, sizeof(int), _cancellationToken);
 				await _pipeWrite.WriteAsync(buffer, 0, buffer.Length, _cancellationToken);

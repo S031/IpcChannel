@@ -59,7 +59,7 @@ namespace IpcChannel
 		public async Task<string> CallMethod(string callMethodInfo)
 		{
 			_ewh.Set();
-			var buffer = Encoding.UTF8.GetBytes(callMethodInfo);
+			var buffer = callMethodInfo.GetBytes(); //Encoding.UTF8.GetBytes(callMethodInfo);
 #if NETCOREAPP
 			await _pipeWrite.WriteAsync(BitConverter.GetBytes(buffer.Length).AsMemory(0, sizeof(int)), _cancellationToken);
 			await _pipeWrite.WriteAsync(buffer.AsMemory(0, buffer.Length), _cancellationToken);
@@ -74,7 +74,7 @@ namespace IpcChannel
 				return null;
 
 			buffer = await GetByteArrayFromStreamAsync(_pipeRead, streamSize);
-			return Encoding.UTF8.GetString(buffer);
+			return buffer.GetString(); //Encoding.UTF8.GetString(buffer);
 		}
 
 		private async Task<byte[]> GetByteArrayFromStreamAsync(PipeStream stream, int length)
