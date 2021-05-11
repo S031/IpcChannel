@@ -36,11 +36,8 @@ namespace IpcChannel
 		private static readonly string _logPath =
 				Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "log");
 
-		private static string _logFileName 
-			=>string.Format(@"{0}\{1}{2}.log",
-				_logPath,
-				LoggerOptions.LogName,
-				DateTime.Now.ToString("yyyy-MM"));
+		private static string GetLogFileName()
+			=> $@"{_logPath}\{LoggerOptions.LogName}{DateTime.Now.ToString("yyyy-MM")}.log";
 
 		public static LoggerOptions LoggerOptions { get; } = new LoggerOptions() { LoggingLevel = LogLevel.Information };
 
@@ -86,7 +83,7 @@ namespace IpcChannel
 
 			lock (obj4lock)
 			{
-				File.AppendAllText(_logFileName, _logger.ToString());
+				File.AppendAllText(GetLogFileName(), _logger.ToString());
 				_logger.Clear();
 			}
 		}

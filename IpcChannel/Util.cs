@@ -24,7 +24,7 @@ namespace IpcChannel
 		}
 		public static unsafe string GetString(this byte[] buffer)
 		{
-			int size = buffer.Length / sizeof(char);
+			int size = buffer.Length;
 			if (size > 0)
 			{
 				fixed (char* dest = new char[size])
