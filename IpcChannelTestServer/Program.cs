@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using System.Security.Principal;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -81,13 +82,18 @@ namespace IpcChannelTestServer
 		{
 			Logger.LogInfo("Client start..");
 			using (IpcPipeClient c = new IpcPipeClient(pipeServerReadHandle, pipeServerWriteHandle,
-				(s, t) => ProcessMessage(s), cancellationToken))
+				(request, cancellationtoken) =>
+					ProcessMessage(request, cancellationtoken), cancellationToken))
 			{
 				await c.ListenAsync();
 			}
 		}
 
-		private static async Task<string> ProcessMessage(string request)
-			=> await Task.Run(() => $"{request} processed");
+		private static async Task<byte[]> ProcessMessage(byte[] request, CancellationToken cancellationToken)
+		{
+			var requestString = Encoding.UTF8.GetString(request);
+			var response = Encoding.UTF8.GetBytes($"{requestString} processed");
+			return await Task.FromResult(response);
+		}
 	}
 }

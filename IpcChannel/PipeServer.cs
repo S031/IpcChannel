@@ -59,7 +59,7 @@ namespace IpcChannel
 		public async Task<string> CallMethod(string callMethodInfo)
 		{
 			_ewh.Set();
-			var buffer = callMethodInfo.GetBytes(); //Encoding.UTF8.GetBytes(callMethodInfo);
+			var buffer = Encoding.UTF8.GetBytes(callMethodInfo);
 #if NETCOREAPP
 			await _pipeWrite.WriteAsync(BitConverter.GetBytes(buffer.Length).AsMemory(0, sizeof(int)), _cancellationToken);
 			await _pipeWrite.WriteAsync(buffer.AsMemory(0, buffer.Length), _cancellationToken);
@@ -74,7 +74,7 @@ namespace IpcChannel
 				return null;
 
 			buffer = await GetByteArrayFromStreamAsync(_pipeRead, streamSize);
-			return buffer.GetString(); //Encoding.UTF8.GetString(buffer);
+			return Encoding.UTF8.GetString(buffer);
 		}
 
 		private async Task<byte[]> GetByteArrayFromStreamAsync(PipeStream stream, int length)
@@ -89,7 +89,18 @@ namespace IpcChannel
 		}
 
 		public async Task CloseChannel()
-			=> await CallMethod(close_channel_method_name);
+		{
+			_ewh.Set();
+			/// send neghative buffer length for close cyfnnel
+			/// ToDo:
+			/// Response && error handling
+#if NETCOREAPP
+			await _pipeWrite.WriteAsync(BitConverter.GetBytes(-1).AsMemory(0, sizeof(int)), _cancellationToken);
+#else
+			await _pipeWrite.WriteAsync(BitConverter.GetBytes(-1), 0, sizeof(int), _cancellationToken);
+#endif
+		}
+
 
 		public void Dispose()
 		{

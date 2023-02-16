@@ -11,15 +11,15 @@ namespace IpcChannel
 {
 	public sealed class IpcPipeClient : IDisposable
 	{
-		private const string close_channel_method_name = "CloseChannel";
+		//private const string close_channel_method_name = "CloseChannel";
 		private readonly AnonymousPipeClientStream _pipeRead;
 		private readonly AnonymousPipeClientStream _pipeWrite;
-		private readonly Func<string, CancellationToken, Task<string>> _messageProcessor;
+		private readonly Func<byte[], CancellationToken, Task<byte[]>> _messageProcessor;
 		private readonly CancellationToken _cancellationToken;
 		private readonly EventWaitHandle _ewh;
 
-		public IpcPipeClient(string pipeServerReadHandle, string pipeServerWriteHandle, 
-			Func<string, CancellationToken, Task<string>> messageProcessor, 
+		public IpcPipeClient(string pipeServerReadHandle, string pipeServerWriteHandle,
+			Func<byte[],  CancellationToken, Task<byte[]>> messageProcessor, 
 			CancellationToken token = default)
 		{
 			_pipeRead = new AnonymousPipeClientStream(PipeDirection.In, pipeServerWriteHandle);
@@ -42,13 +42,23 @@ namespace IpcChannel
 		{
 			byte[] buffer;
 			int streamSize = 0;
-			bool isCancel = false;
+			//bool isCancel = false;
 			try
 			{
 				buffer = await GetByteArrayFromStreamAsync(_pipeRead, sizeof(int));
 				streamSize = BitConverter.ToInt32(buffer, 0);
 				if (streamSize == 0)
 					return false;
+				else if (streamSize < 0)
+				{
+					/// close channel signal
+#if NETCOREAPP
+					await _pipeWrite.WriteAsync(BitConverter.GetBytes(-1).AsMemory(0, sizeof(int)), _cancellationToken);
+#else
+					await _pipeWrite.WriteAsync(BitConverter.GetBytes(-1), 0, sizeof(int), _cancellationToken);
+#endif
+					return false;
+				}
 			}
 			catch (Exception e)
 			{
@@ -57,14 +67,17 @@ namespace IpcChannel
 			}
 
 			buffer = await GetByteArrayFromStreamAsync(_pipeRead, streamSize);
-			string request = buffer.GetString(); //Encoding.UTF8.GetString(buffer);
-			Logger.LogDebug(request);
-			isCancel = request == close_channel_method_name;
-			var response = isCancel
-				? "OK"
-				: await _messageProcessor(request, _cancellationToken);
-			Logger.LogDebug(response);
-			buffer = response.GetBytes(); //Encoding.UTF8.GetBytes(response);
+			//			string request = Encoding.UTF8.GetString(buffer);
+			//			Logger.LogDebug(request);
+			//			isCancel = request == close_channel_method_name;
+			//			var response = isCancel
+			//				? "OK"
+			//				: await _messageProcessor(request, _cancellationToken);
+			//			Logger.LogDebug(response);
+			//			buffer = Encoding.UTF8.GetBytes(response);
+			buffer = await _messageProcessor(buffer, _cancellationToken);
+			if (buffer == null) 
+				return false;
 #if NETCOREAPP
 			await _pipeWrite.WriteAsync(BitConverter.GetBytes(buffer.Length).AsMemory(0, sizeof(int)), _cancellationToken);
 			await _pipeWrite.WriteAsync(buffer.AsMemory(0, buffer.Length), _cancellationToken);
@@ -72,7 +85,7 @@ namespace IpcChannel
 				await _pipeWrite.WriteAsync(BitConverter.GetBytes(buffer.Length), 0, sizeof(int), _cancellationToken);
 				await _pipeWrite.WriteAsync(buffer, 0, buffer.Length, _cancellationToken);
 #endif
-			return !isCancel;
+			return true;
 		}
 
 		private async Task<byte[]> GetByteArrayFromStreamAsync(PipeStream stream, int length)
